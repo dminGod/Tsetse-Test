@@ -1,14 +1,16 @@
 package main
 
 import (
-	"os/exec"
-	"runtime"
-	"net/http"
-	"log"
-	"time"
+	"bufio"
 	"fmt"
 	"github.com/tealeg/xlsx"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"runtime"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -17,7 +19,7 @@ func main() {
 
 	excelFileName := "test.xlsx"
 	xlFile, err := xlsx.OpenFile(excelFileName)
-
+	bodyPath := "call-bodies"
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -32,10 +34,12 @@ func main() {
 			wg.Add(1)
 
 			name, _ := row.Cells[0].String()
+			httpType, _ := row.Cells[1].String()
 			url, _ := row.Cells[2].String()
-
+			relativePath, _ := row.Cells[3].String()
+			bodyPath := bodyPath + "/" + relativePath
 			fmt.Print(".")
-			go makeHttpCall(name, url, &wg)
+			go makeHttpCall(name, httpType, url, bodyPath, &wg)
 		}
 	}
 
@@ -45,15 +49,27 @@ func main() {
 	elapsed := time.Since(start)
 	log.Printf("Binomial took %s", elapsed)
 
+	go startWS()
+
 	time.Sleep(60 * time.Second)
 	fmt.Println("This is working")
 }
 
-
-func makeHttpCall(name string, urll string, wg *sync.WaitGroup){
+func makeHttpCall(name string, httpType string, urll string, bodyPath string, wg *sync.WaitGroup) {
 
 	baseUrl := "http://10.252.169.12:7788" + urll
-	resp, err := http.Get(baseUrl)
+	// Need to read values from file with path in bodyPath as JSON
+	bodyValue, _ := os.Open(bodyPath)
+	bodyVal := bufio.NewReader(bodyValue)
+	var err error
+	var resp *http.Response
+
+	switch httpType {
+	case "GET":
+		resp, err := http.Get(baseUrl)
+	case "POST":
+		resp, err := http.Post(baseUrl, "application/json", bodyVal)
+	}
 
 	if resp != nil {
 
@@ -72,8 +88,7 @@ func makeHttpCall(name string, urll string, wg *sync.WaitGroup){
 	wg.Done()
 }
 
-
-func startWS(){
+func startWS() {
 	fs := http.FileServer(http.Dir("static-pages"))
 	http.Handle("/", fs)
 
@@ -83,9 +98,6 @@ func startWS(){
 
 	http.ListenAndServe(":3000", nil)
 }
-
-
-
 
 // openBrowser tries to open the URL in a browser,
 // and returns whether it succeed in doing so.
