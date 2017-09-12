@@ -33,11 +33,13 @@ func main() {
 
 			wg.Add(1)
 
-			name, _ := row.Cells[0].String()
-			httpType, _ := row.Cells[1].String()
-			url, _ := row.Cells[2].String()
-			relativePath, _ := row.Cells[3].String()
-			bodyPath := bodyPath + "/" + relativePath
+			name := row.Cells[0].String()
+			httpType := row.Cells[1].String()
+			url := row.Cells[2].String()
+			if len(row.Cells) > 3 {
+				relativePath := row.Cells[3].String()
+				bodyPath = bodyPath + "/" + relativePath
+			}
 			fmt.Print(".")
 			go makeHttpCall(name, httpType, url, bodyPath, &wg)
 		}
@@ -51,13 +53,13 @@ func main() {
 
 	go startWS()
 
-	time.Sleep(60 * time.Second)
-	fmt.Println("This is working")
+	//time.Sleep(60 * time.Second)
+	//fmt.Println("This is working")
 }
 
 func makeHttpCall(name string, httpType string, urll string, bodyPath string, wg *sync.WaitGroup) {
-
-	baseUrl := "http://10.252.169.12:7788" + urll
+	fmt.Println("HTTP CALL WAS MADE")
+	baseUrl := "http://192.168.2.57:60080" + urll
 	// Need to read values from file with path in bodyPath as JSON
 	bodyValue, _ := os.Open(bodyPath)
 	bodyVal := bufio.NewReader(bodyValue)
@@ -66,16 +68,16 @@ func makeHttpCall(name string, httpType string, urll string, bodyPath string, wg
 
 	switch httpType {
 	case "GET":
-		resp, err := http.Get(baseUrl)
+		resp, err = http.Get(baseUrl)
 	case "POST":
-		resp, err := http.Post(baseUrl, "application/json", bodyVal)
+		resp, err = http.Post(baseUrl, "application/json", bodyVal)
 	}
 
 	if resp != nil {
 
 		if resp.StatusCode == 200 {
 
-			fmt.Print("+")
+			fmt.Println("Successful call made to "+baseUrl+" in ")
 		} else {
 
 			fmt.Println(baseUrl, resp.StatusCode, err)
